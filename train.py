@@ -1,4 +1,7 @@
 import time
+import os
+import sys
+import json
 from pathlib import Path
 
 import numpy as np
@@ -11,12 +14,15 @@ import ide_telem as ide
 # CONFIGURATION
 # ============================
 
-MODEL_PATH = Path(__file__).with_name("pendulum.xml")
+EMBEDDED = "--pivot-live" in sys.argv
+if EMBEDDED:
+    sys.stdout = sys.stderr  # Keep the controller's progress text off the frame protocol.
+MODEL_PATH = Path(os.environ.get("PIVOT_MODEL_PATH", Path(__file__).with_name("pendulum.xml")))
 
 # Desired joint angles (radians)
 # [shoulder, elbow]
-TARGET = np.array([0.0, 0.0])
-START = np.array([0.5, 1.0])
+TARGET = np.array([-0.24, 1.26])
+START = np.array([0.94, -0.94])
 
 TRAIN_ITERATIONS = 100
 EPISODE_DURATION = 3.0
@@ -113,7 +119,12 @@ def simulate(gains, visualize=False):
         print("Target:", TARGET)
         print("Opening viewer...")
 
-        with mujoco.viewer.launch_passive(model, data) as viewer:
+        if os.getenv("PIVOT_TELEMETRY_URL"):
+            from pivot_viewer import launch_passive
+            viewer_context = launch_passive(model, data, str(MODEL_PATH))
+        else:
+            viewer_context = mujoco.viewer.launch_passive(model, data)
+        with viewer_context as viewer:
             phase = "waiting"
             phase_start = time.perf_counter()
             episode = 1
@@ -123,6 +134,15 @@ def simulate(gains, visualize=False):
 
             while viewer.is_running():
                 tick = time.perf_counter()
+                if getattr(viewer, "reset_requested", False):
+                    viewer.reset_requested = False
+                    reset_episode()
+                    phase = "waiting"
+                    phase_start = tick
+                if getattr(viewer, "paused", False):
+                    viewer.sync()
+                    time.sleep(0.025)
+                    continue
 
                 if phase == "waiting":
                     # Hold the pendulum at START
@@ -250,6 +270,43 @@ print("\nTraining complete!")
 print("Optimized gains:", final_gains)
 print("Target joint angles:", TARGET)
 
-print("\nLaunching MuJoCo viewer...")
-simulate(final_gains, visualize=True)
+if EMBEDDED:
+    sys.path.insert(0, os.environ["PIVOT_SIMULATOR_DIR"])
+    from run import metadata, sample
+
+    data = mujoco.MjData(model)
+    integral = np.zeros(2)
+
+    def reset_embedded():
+        mujoco.mj_resetData(model, data)
+        data.qpos[:2] = START
+        integral.fill(0.0)
+        mujoco.mj_forward(model, data)
+
+    reset_embedded()
+    # The first command acknowledges the trained controller and selected MJCF.
+    if sys.stdin.readline():
+        print(json.dumps({**metadata(model, MODEL_PATH.stem, mujoco), "frames": [sample(model, data)]}), file=sys.__stdout__, flush=True)
+        for line in sys.stdin:
+            command = json.loads(line)
+            if command.get("reset"):
+                reset_embedded()
+                frames = [sample(model, data)]
+            else:
+                count, stride = int(command["count"]), int(command["stride"])
+                if not (1 <= count <= 128 and 1 <= stride <= 4096 and count * stride <= 4096):
+                    raise ValueError("Invalid step batch")
+                frames = []
+                for _ in range(count):
+                    for _ in range(stride):
+                        data.ctrl[:2] = pid_control(data, final_gains, integral)
+                        mujoco.mj_step(model, data)
+                    frames.append(sample(model, data))
+                    if len(frames) % 2 == 0:
+                        ide.log("shoulder_angle", float(data.qpos[0]))
+                        ide.log("elbow_angle", float(data.qpos[1]))
+            print(json.dumps(frames), file=sys.__stdout__, flush=True)
+else:
+    print("\nLaunching MuJoCo viewer...")
+    simulate(final_gains, visualize=True)
 

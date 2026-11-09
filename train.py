@@ -15,8 +15,8 @@ MODEL_PATH = Path(__file__).with_name("pendulum.xml")
 
 # Desired joint angles (radians)
 # [shoulder, elbow]
-TARGET = np.array([0.5, 0.5])
-START = np.array([1.0, 0.5])
+TARGET = np.array([0.0, 0.0])
+START = np.array([0.5, 1.0])
 
 TRAIN_ITERATIONS = 100
 EPISODE_DURATION = 3.0

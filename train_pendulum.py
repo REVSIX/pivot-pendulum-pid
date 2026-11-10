@@ -21,10 +21,10 @@ MODEL_PATH = Path(os.environ.get("PIVOT_MODEL_PATH", Path(__file__).with_name("p
 
 # Desired joint angles (radians)
 # [shoulder, elbow]
-TARGET = np.array([-0.24, 1.26])
-START = np.array([0.94, -0.94])
+TARGET = np.array([-0.5, -0.5])
+START = np.array([0.5, 0.5])
 
-TRAIN_ITERATIONS = 100
+TRAIN_ITERATIONS = 200
 EPISODE_DURATION = 3.0
 
 # ============================

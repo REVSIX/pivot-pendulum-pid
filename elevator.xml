@@ -1,0 +1,25 @@
+<mujoco model="dual_motor_rack_elevator">
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.01" gravity="0 0 -9.81" integrator="RK4"/>
+  <worldbody>
+    <light pos="0 -3 4" dir="0 0 -1"/>
+    <geom name="floor" type="plane" size="3 3 .1" rgba=".17 .19 .23 1"/>
+    <geom name="left_rail" type="box" pos="-.35 0 1" size=".025 .04 .95" rgba=".5 .55 .6 1"/>
+    <geom name="right_rail" type="box" pos=".35 0 1" size=".025 .04 .95" rgba=".5 .55 .6 1"/>
+    <geom name="left_rack" type="box" pos="-.28 0 1" size=".015 .035 .95" rgba=".84 .67 .26 1"/>
+    <geom name="right_rack" type="box" pos=".28 0 1" size=".015 .035 .95" rgba=".84 .67 .26 1"/>
+    <body name="elevator_carriage" pos="0 0 .2">
+      <joint name="elevator_slide" type="slide" axis="0 0 1" range="0 1.6" damping="2" frictionloss="1"/>
+      <geom name="carriage" type="box" size=".20 .16 .10" mass="4" rgba=".25 .55 .95 1"/>
+      <geom name="left_pinion_visual" type="cylinder" pos="-.25 -.07 0" quat=".70710678 .70710678 0 0" size=".04 .02" rgba=".95 .5 .13 1" mass=".01"/>
+      <geom name="right_pinion_visual" type="cylinder" pos=".25 -.07 0" quat=".70710678 .70710678 0 0" size=".04 .02" rgba=".95 .5 .13 1" mass=".01"/>
+      <site name="height_marker" pos="0 0 .12" size=".025" rgba=".2 1 .5 1"/>
+    </body>
+  </worldbody>
+  <!-- Gear = 1/r for r=.04m: actuator control is pinion torque (N*m), force = torque/r. -->
+  <actuator>
+    <motor name="left_servo" joint="elevator_slide" gear="25" ctrlrange="-2 2" ctrllimited="true"/>
+    <motor name="right_servo" joint="elevator_slide" gear="25" ctrlrange="-2 2" ctrllimited="true"/>
+  </actuator>
+</mujoco>
+

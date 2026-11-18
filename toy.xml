@@ -1,0 +1,90 @@
+
+<mujoco model="bouncy_toy">
+    <compiler angle="degree" autolimits="true"/>
+
+    <option
+        timestep="0.01"
+        gravity="0 0 -9.81"
+        integrator="RK4"
+    />
+
+    <visual>
+        <global offwidth="1280" offheight="720"/>
+    </visual>
+
+    <asset>
+        <material
+            name="toy_mat"
+            rgba="0.9 0.2 0.2 1"
+            shininess="0.8"
+        />
+        <material
+            name="floor_mat"
+            rgba="0.2 0.3 0.4 1"
+        />
+    </asset>
+
+    <worldbody>
+        <light
+            pos="0 -3 5"
+            dir="0 0 -1"
+            directional="true"
+        />
+
+        <!-- Ground plane at Z = 0 -->
+        <geom
+            name="floor"
+            type="plane"
+            size="10 10 0.1"
+            material="floor_mat"
+        />
+
+        <!-- Vertical guide rail, visual only -->
+        <geom
+            name="guide_rail"
+            type="capsule"
+            fromto="0.45 0 0.2 0.45 0 5.2"
+            size="0.025"
+            rgba="0.4 0.5 0.6 1"
+            contype="0"
+            conaffinity="0"
+        />
+
+        <!-- Toy origin is 0.2m above the ground -->
+        <body name="toy" pos="0 0 0.2">
+
+            <!-- qpos=0 means box rests on floor -->
+            <joint
+                name="vertical_slider"
+                type="slide"
+                axis="0 0 1"
+                range="0 5"
+                limited="true"
+                damping="0.5"
+            />
+
+            <!-- Box is 0.4m tall -->
+            <geom
+                name="box"
+                type="box"
+                size="0.2 0.2 0.2"
+                mass="1.0"
+                material="toy_mat"
+            />
+
+        </body>
+    </worldbody>
+
+    <!-- Vertical force actuator -->
+    <actuator>
+        <motor
+            name="thruster"
+            joint="vertical_slider"
+            gear="1"
+            ctrlrange="-20 20"
+            ctrllimited="true"
+        />
+    </actuator>
+
+</mujoco>
+
